@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>统一监控中枢 | Unified Monitoring System</title>
+  <style>
+    /* ========================================
+       全局样式重置
+       ======================================== */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    /* ========================================
+       CSS 变量定义
+       ======================================== */
+    :root {
+      --primary-color: #00ffff;         /* 主色调：青色 */
+      --secondary-color: #ff00ff;       /* 辅助色：品红 */
+      --accent-color: #00ff00;          /* 强调色：绿色 */
+      --warning-color: #ffaa00;         /* 警告色：黄色 */
+      --danger-color: #ff0055;          /* 危险色：红色 */
+      --dark-bg: #0a0a1a;               /* 深色背景 */
+      --darker-bg: #050510;             /* 更深色背景 */
+      --card-bg: rgba(15, 15, 30, 0.85); /* 卡片半透明背景 */
+      --text-primary: #e0e0ff;          /* 主文字颜色 */
+      --text-secondary: #9090a0;        /* 次要文字颜色 */
+    }
+    
+    /* ========================================
+       基础布局样式
+       ======================================== */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--darker-bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    
+    /* ========================================
+       粒子背景 Canvas 样式
+       ======================================== */
+    #particles-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+    }
+    
+    /* ========================================
+       扫描线效果
+       ======================================== */
+    .scanline {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        to bottom,
+        rgba(255,255,255,0) 0%,
+        rgba(255,255,255,0.03) 50%,
+        rgba(255,255,255,0) 100%
+      );
+      background-size: 100% 4px;
+      z-index: 1000;
+      pointer-events: none;
+    }
+    
+    /* ========================================
+       页面头部样式
+       ======================================== */
+    .header {
+      padding: 20px 40px;
+      background: linear-gradient(
+        135deg,
+        rgba(0,255,255,0.1) 0%,
+        rgba(0,100,150,0.05) 100%
+      );
+      border-bottom: 2px solid var(--primary-color);
+      box-shadow:
+        0 0 30px rgba(0,255,255,0.3),
+        inset 0 0 30px rgba(0,255,255,0.05);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .header-content {
+      max-width: 1800px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    
+    /* ========================================
+       Logo 样式与发光动画
+       ======================================== */
+    .logo {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: glow 2s ease-in-out infinite alternate;
+    }
+    
+    @keyframes glow {
+      from { filter: drop-shadow(0 0 10px var(--primary-color)); }
+      to { filter: drop-shadow(0 0 25px var(--primary-color)); }
+    }
+    
+    /* ========================================
+       头部指标卡片
+       ======================================== */
+    .header-metrics {
+      display: flex;
+      gap: 30px;
+      flex-wrap: wrap;
+    }
+    
+    .metric-item {
+      text-align: center;
+    }
+    
+    .metric-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .metric-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--primary-color);
+      font-family: 'Courier New', monospace;
+    }
+    
+    /* ========================================
+       在线状态指示器
+       ======================================== */
+    .online-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .online-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent-color);
+      box-shadow: 0 0 15px var(--accent-color);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.3); }
+    }
+    
+    /* ========================================
+       主内容区域
+       ======================================== */
+    .main-container {
+      max-width: 1800px;
+      margin: 0 auto;
+      padding: 30px 40px;
+      position: relative;
+      z-index: 10;
+    }
+    
+    /* ========================================
+       仪表板网格布局
+       ======================================== */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 25px;
+      margin-bottom: 30px;
+    }
+    
+    /* ========================================
+       卡片通用样式
+       ======================================== */
+    .dashboard-card {
+      background: var(--card-bg);
+      border: 1px solid rgba(0,255,255,0.2);
+      border-radius: 12px;
+      padding: 25px;
+      backdrop-filter: blur(10px);
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .dashboard-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    }
+    
+    .dashboard-card:hover {
+      transform: translateY(-5px);
+      border-color: var(--primary-color);
+      box-shadow: 0 10px 40px rgba(0,255,255,0.2);
+    }
+    
+    /* ========================================
+       卡片头部样式
+       ======================================== */
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid rgba(0,255,255,0.1);
+    }
+    
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--primary-color);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    
+    .card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      background: rgba(0,255,255,0.1);
+    }
+    
+    /* ========================================
+       数据项样式
+       ======================================== */
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(0,255,255,0.05);
+    }
+    
+    .stat-label {
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+    
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      font-family: 'Courier New', monospace;
+    }
+    
+    /* 根据数值大小改变颜色 */
+    .stat-value.high { color: var(--danger-color); }
+    .stat-value.medium { color: var(--warning-color); }
+    .stat-value.normal { color: var(--accent-color); }
+    
+    /* ========================================
+       进度条样式
+       ======================================== */
+    .progress-container {
+      margin-top: 15px;
+    }
+    
+    .progress-bar {
+      height: 8px;
+      background: rgba(0,255,255,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+      border-radius: 4px;
+      transition: width 0.5s ease;
+      box-shadow: 0 0 10px var(--primary-color);
+    }
+    
+    /* ========================================
+       告警区域样式
+       ======================================== */
+    .alerts-section {
+      grid-column: 1 / -1;
+    }
+    
+    .alert-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 15px;
+      margin-bottom: 10px;
+      background: rgba(255,0,85,0.1);
+      border-left: 3px solid var(--danger-color);
+      border-radius: 6px;
+      animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    
+    .alert-item.warning {
+      background: rgba(255,170,0,0.1);
+      border-left-color: var(--warning-color);
+    }
+    
+    .alert-item.info {
+      background: rgba(0,255,255,0.1);
+      border-left-color: var(--primary-color);
+    }
+    
+    .alert-level {
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-right: 12px;
+    }
+    
+    .alert-item .alert-level { background: var(--danger-color); }
+    .alert-item.warning .alert-level { background: var(--warning-color); color: #000; }
+    .alert-item.info .alert-level { background: var(--primary-color); color: #000; }
+    
+    .alert-content { flex: 1; }
+    .alert-message { margin-bottom: 5px; }
+    .alert-time { font-size: 12px; color: var(--text-secondary); }
+    
+    /* ========================================
+       图表容器
+       ======================================== */
+    .chart-container {
+      width: 100%;
+      height: 300px;
+      position: relative;
+    }
+    
+    .wide-card {
+      grid-column: 1 / -1;
+    }
+    
+    /* ========================================
+       风扇控制样式
+       ======================================== */
+    .fan-mode-toggle {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .mode-btn {
+      padding: 8px 16px;
+      border: 1px solid var(--primary-color);
+      background: transparent;
+      color: var(--primary-color);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.3s ease;
+    }
+    
+    .mode-btn:hover {
+      background: rgba(0,255,255,0.1);
+    }
+    
+    .mode-btn.active {
+      background: var(--primary-color);
+      color: #000;
+      font-weight: 700;
+    }
+    
+    .fan-slider-container {
+      margin-top: 20px;
+      padding: 20px;
+      background: rgba(0,255,255,0.05);
+      border-radius: 8px;
+      border: 1px solid rgba(0,255,255,0.2);
+    }
+    
+    .fan-slider {
+      width: 100%;
+      height: 12px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: linear-gradient(
+        90deg,
+        rgba(0,255,255,0.1) 0%,
+        rgba(0,255,255,0.3) 50%,
+        rgba(255,0,255,0.3) 100%
+      );
+      border-radius: 6px;
+      outline: none;
+      cursor: pointer;
+    }
+    
+    .fan-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      cursor: pointer;
+      box-shadow: 0 0 15px var(--primary-color);
+      transition: all 0.2s ease;
+    }
+    
+    .fan-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 25px var(--primary-color);
+    }
+    
+    .slider-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    
+    .fan-info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+    
+    .fan-info-card {
+      padding: 15px;
+      background: rgba(0,255,255,0.05);
+      border-radius: 8px;
+      border: 1px solid rgba(0,255,255,0.1);
+    }
+    
+    .fan-info-card h4 {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    
+    .fan-info-card .speed {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+    
+    .fan-info-card .speed span {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    
+    .fan-info-card .mode-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      margin-top: 8px;
+    }
+    
+    .fan-info-card .mode-badge.auto {
+      background: rgba(0,255,255,0.2);
+      color: var(--primary-color);
+    }
+    
+    .fan-info-card .mode-badge.manual {
+      background: rgba(255,0,255,0.2);
+      color: var(--secondary-color);
+    }
+    
+    /* ========================================
+       应用版本信息
+       ======================================== */
+    .app-version {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      font-size: 10px;
+      color: var(--text-secondary);
+      opacity: 0.5;
+      z-index: 100;
+    }
+    
+    /* ========================================
+       响应式设计 - 移动端适配
+       ======================================== */
+    @media (max-width: 768px) {
+      .main-container { padding: 20px 15px; }
+      .dashboard-grid { grid-template-columns: 1fr; }
+      .header { padding: 15px 20px; }
+      .logo { font-size: 20px; }
+    }
+    
+    /* ========================================
+       自定义滚动条
+       ======================================== */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--darker-bg); }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(var(--primary-color), var(--secondary-color));
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <!-- 粒子背景 Canvas -->
+  <canvas id="particles-canvas"></canvas>
+  
+  <!-- 扫描线效果 -->
+  <div class="scanline"></div>
+
+  <!-- 页面头部 -->
+  <header class="header">
+    <div class="header-content">
+      <h1 class="logo">▸ 统一监控中枢 ◂</h1>
+      <div class="header-metrics">
+        <div class="metric-item">
+          <div class="metric-label">系统运行时间</div>
+          <div class="metric-value" id="uptime">00:00:00</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-label">当前时间</div>
+          <div class="metric-value" id="current-time">--:--:--</div>
+        </div>
+        <div class="online-status">
+          <div class="online-dot"></div>
+          <span>系统在线</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主内容区域 -->
+  <main class="main-container">
+    <div class="dashboard-grid">
+      
+      <!-- ========================================
+           1. CPU/GPU 监控卡片
+           ======================================== -->
+      <div class="dashboard-card">
+        <div class="card-header">
+          <h2 class="card-title">🖥️ CPU/GPU 监控</h2>
+          <div class="card-icon">⚡</div>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">CPU使用率</span>
+          <span class="stat-value" id="cpu-usage">0%</span>
+        </div>
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-fill" id="cpu-progress" style="width: 0%;"></div>
+          </div>
+        </div>
+        <div class="stat-item" style="margin-top: 15px;">
+          <span class="stat-label">GPU使用率</span>
+          <span class="stat-value" id="gpu-usage">0%</span>
+        </div>
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-fill" id="gpu-progress" style="width: 0%; background: linear-gradient(90deg, #ff00ff, #00ffff);"></div>
+          </div>
+        </div>
+        <div class="stat-item" style="margin-top: 15px;">
+          <span class="stat-label">系统温度</span>
+          <span class="stat-value" id="system-temp">0°C</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">内存使用</span>
+          <span class="stat-value" id="memory-usage">0 GB</span>
+        </div>
+      </div>
+
+      <!-- ========================================
+           2. 网络监听卡片
+           ======================================== -->
+      <div class="dashboard-card">
+        <div class="card-header">
+          <h2 class="card-title">🌐 网络监听</h2>
+          <div class="card-icon">📶</div>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">总流量</span>
+          <span class="stat-value" id="network-traffic">0 MB</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">活动连接</span>
+          <span class="stat-value" id="network-connections">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">上传速率</span>
+          <span class="stat-value" id="upload-speed">0 KB/s</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">下载速率</span>
+          <span class="stat-value" id="download-speed">0 KB/s</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">异常检测</span>
+          <span class="stat-value" id="network-anomalies">0</span>
+        </div>
+      </div>
+
+      <!-- ========================================
+           3. 软件行为卡片
+           ======================================== -->
+      <div class="dashboard-card">
+        <div class="card-header">
+          <h2 class="card-title">📱 软件行为</h2>
+          <div class="card-icon">🔍</div>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">运行进程</span>
+          <span class="stat-value" id="running-processes">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">异常行为</span>
+          <span class="stat-value" id="software-anomalies">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">屏幕监控</span>
+          <span class="stat-value" id="screen-status">正常</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">网络请求</span>
+          <span class="stat-value" id="network-requests">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">文件操作</span>
+          <span class="stat-value" id="file-operations">0</span>
+        </div>
+      </div>
+
+      <!-- ========================================
+           4. 串口监听卡片
+           ======================================== -->
+      <div class="dashboard-card">
+        <div class="card-header">
+          <h2 class="card-title">🔌 串口监听</h2>
+          <div class="card-icon">⚙️</div>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">活跃端口</span>
+          <span class="stat-value" id="serial-ports">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">数据速率</span>
+          <span class="stat-value" id="serial-rate">0 bps</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">异常帧</span>
+          <span class="stat-value" id="serial-errors">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">心跳状态</span>
+          <span class="stat-value" id="heartbeat-status">正常</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">设备数量</span>
+          <span class="stat-value" id="device-count">0</span>
+        </div>
+      </div>
+
+      <!-- ========================================
+           5. 风扇控制卡片 ⭐
+           ======================================== -->
+      <div class="dashboard-card">
+        <div class="card-header">
+          <h2 class="card-title">🌀 风扇控制</h2>
+          <div class="card-icon">🌀</div>
+        </div>
+        <div id="fan-controls">
+          <div class="stat-item">
+            <span class="stat-label">风扇状态</span>
+            <span class="stat-value" id="fan-status">运行中</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">风扇模式</span>
+            <div class="fan-mode-toggle">
+              <button class="mode-btn active" id="fan-mode-auto" onclick="setFanMode('auto')">自动</button>
+              <button class="mode-btn" id="fan-mode-manual" onclick="setFanMode('manual')">手动</button>
+            </div>
+          </div>
+          <div id="fan-speed-controls" style="display: none;">
+            <div class="stat-item">
+              <span class="stat-label">转速控制</span>
+              <span class="stat-value" id="fan-speed-value">50%</span>
+            </div>
+            <div class="fan-slider-container">
+              <input type="range" id="fan-speed-slider" min="0" max="100" value="50" class="fan-slider" onchange="setFanSpeed(this.value)">
+              <div class="slider-labels">
+                <span>静音 0%</span>
+                <span>平衡 50%</span>
+                <span>性能 100%</span>
+              </div>
+            </div>
+          </div>
+          <div class="fan-info-grid" id="fan-info-grid">
+            <div class="fan-info-card">
+              <h4>CPU 风扇</h4>
+              <div class="speed" id="cpu-fan-speed">1200 <span>RPM</span></div>
+              <span class="mode-badge auto" id="cpu-fan-mode">自动</span>
+            </div>
+            <div class="fan-info-card">
+              <h4>系统风扇 1</h4>
+              <div class="speed" id="sys1-fan-speed">900 <span>RPM</span></div>
+              <span class="mode-badge auto" id="sys1-fan-mode">自动</span>
+            </div>
+            <div class="fan-info-card">
+              <h4>系统风扇 2</h4>
+              <div class="speed" id="sys2-fan-speed">850 <span>RPM</span></div>
+              <span class="mode-badge auto" id="sys2-fan-mode">自动</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================
+           6. 性能趋势图
+           ======================================== -->
+      <div class="dashboard-card wide-card">
+        <div class="card-header">
+          <h2 class="card-title">📊 性能趋势图</h2>
+          <div class="card-icon">📈</div>
+        </div>
+        <div id="performance-chart" class="chart-container"></div>
+      </div>
+
+      <!-- ========================================
+           7. 告警中心
+           ======================================== -->
+      <div class="dashboard-card alerts-section">
+        <div class="card-header">
+          <h2 class="card-title">⚠️ 实时告警中心</h2>
+          <div class="card-icon">🔔</div>
+        </div>
+        <div id="alert-list"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 版本信息 -->
+  <div class="app-version">统一监控系统 v1.0.0 | 双击即可运行</div>
+
+  <!-- 引入 ECharts 可视化库 -->
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  
+  <!-- ========================================
+       JavaScript 主逻辑
+       ======================================== -->
+  <script>
+    /**
+     * ========================================
+     * 1. 粒子系统类 - 动态背景效果
+     * ========================================
+     */
+    class ParticleSystem {
+      constructor() {
+        // 获取 Canvas 元素和绘图上下文
+        this.canvas = document.getElementById('particles-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.particles = []; // 存储所有粒子
+        
+        // 初始化
+        this.init();
+      }
+      
+      // 初始化粒子系统
+      init() {
+        this.resize(); // 调整 Canvas 大小
+        this.createParticles(); // 创建粒子
+        this.animate(); // 开始动画循环
+        window.addEventListener('resize', () => this.resize()); // 监听窗口大小变化
+      }
+      
+      // 调整 Canvas 大小以匹配窗口
+      resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+      }
+      
+      // 创建粒子数组
+      createParticles() {
+        // 根据屏幕大小计算粒子数量，每 12000 像素一个粒子
+        const count = Math.floor((this.canvas.width * this.canvas.height) / 12000);
+        for (let i = 0; i < count; i++) {
+          this.particles.push({
+            x: Math.random() * this.canvas.width,      // 随机 x 位置
+            y: Math.random() * this.canvas.height,     // 随机 y 位置
+            vx: (Math.random() - 0.5) * 0.4,           // 随机 x 速度
+            vy: (Math.random() - 0.5) * 0.4,           // 随机 y 速度
+            size: Math.random() * 2 + 0.5,             // 随机大小
+            opacity: Math.random() * 0.5 + 0.2         // 随机透明度
+          });
+        }
+      }
+      
+      // 动画循环 - 渲染粒子
+      animate() {
+        // 清空画布
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // 更新和绘制每个粒子
+        this.particles.forEach(p => {
+          // 更新位置
+          p.x += p.vx;
+          p.y += p.vy;
+          
+          // 边界检查 - 粒子超出屏幕后从另一边出现
+          if (p.x < 0) p.x = this.canvas.width;
+          if (p.x > this.canvas.width) p.x = 0;
+          if (p.y < 0) p.y = this.canvas.height;
+          if (p.y > this.canvas.height) p.y = 0;
+          
+          // 绘制粒子
+          this.ctx.beginPath();
+          this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          this.ctx.fillStyle = `rgba(0, 255, 255, ${p.opacity})`; // 青蓝色
+          this.ctx.fill();
+        });
+        
+        // 绘制粒子之间的连接线条
+        for (let i = 0; i < this.particles.length; i++) {
+          for (let j = i + 1; j < this.particles.length; j++) {
+            const dx = this.particles[i].x - this.particles[j].x;
+            const dy = this.particles[i].y - this.particles[j].y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // 只在距离小于 100 像素时绘制连接线
+            if (distance < 100) {
+              this.ctx.beginPath();
+              // 距离越近，线条越不透明
+              this.ctx.strokeStyle = `rgba(0, 255, 255, ${0.1 * (1 - distance / 100)})`;
+              this.ctx.lineWidth = 0.5;
+              this.ctx.moveTo(this.particles[i].x, this.particles[i].y);
+              this.ctx.lineTo(this.particles[j].x, this.particles[j].y);
+              this.ctx.stroke();
+            }
+          }
+        }
+        
+        // 继续下一帧动画
+        requestAnimationFrame(() => this.animate());
+      }
+    }
+    
+    /**
+     * ========================================
+     * 2. 数字动画类 - 平滑的数值变化效果
+     * ========================================
+     */
+    class AnimatedNumber {
+      constructor(element, decimals = 0, suffix = '') {
+        this.element = element;    // DOM 元素
+        this.decimals = decimals;  // 小数位数
+        this.suffix = suffix;      // 后缀（如 %, °C, MB）
+        this.current = 0;          // 当前值
+        this.target = 0;           // 目标值
+      }
+      
+      // 设置目标值并开始动画
+      setValue(value) {
+        this.target = value;
+        this.animate();
+      }
+      
+      // 平滑动画 - 使用缓动效果
+      animate() {
+        const diff = this.target - this.current;
+        
+        // 如果差异很小，直接跳到目标值，避免无限循环
+        if (Math.abs(diff) < 0.1) {
+          this.current = this.target;
+          this.updateDisplay();
+          return;
+        }
+        
+        // 每次移动差异的 15%，产生平滑效果
+        this.current += diff * 0.15;
+        this.updateDisplay();
+        
+        // 继续动画
+        requestAnimationFrame(() => this.animate());
+      }
+      
+      // 更新 DOM 显示
+      updateDisplay() {
+        this.element.textContent = this.current.toFixed(this.decimals) + this.suffix;
+        
+        // 根据数值大小设置颜色
+        this.element.className = 'stat-value';
+        if (this.current > 80) this.element.classList.add('high');
+        else if (this.current > 60) this.element.classList.add('medium');
+        else this.element.classList.add('normal');
+      }
+    }
+    
+    /**
+     * ========================================
+     * 3. 全局变量初始化
+     * ========================================
+     */
+    let perfChart; // 性能趋势图表对象
+    let currentFanMode = 'auto'; // 风扇控制模式：auto/manual
+    
+    // 初始化动画计数器
+    let startTime = Date.now();
+    let cpuData = [20, 25, 22, 30, 28, 35, 32]; // CPU 历史数据
+    let gpuData = [15, 18, 22, 28, 25, 20, 22]; // GPU 历史数据
+    let networkData = [40, 45, 50, 55, 48, 52, 58]; // 网络历史数据
+    
+    // 初始化动画数值对象
+    const animatedCPU = new AnimatedNumber(document.getElementById('cpu-usage'), 1, '%');
+    const animatedGPU = new AnimatedNumber(document.getElementById('gpu-usage'), 1, '%');
+    const animatedTemp = new AnimatedNumber(document.getElementById('system-temp'), 1, '°C');
+    
+    /**
+     * ========================================
+     * 4. 初始化图表
+     * ========================================
+     */
+    function initCharts() {
+      // 创建性能趋势图
+      perfChart = echarts.init(document.getElementById('performance-chart'));
+      
+      // 配置图表选项
+      perfChart.setOption({
+        backgroundColor: 'transparent',
+        tooltip: {
+          trigger: 'axis',
+          backgroundColor: 'rgba(15, 15, 30, 0.9)',
+          borderColor: 'rgba(0, 255, 255, 0.3)',
+          textStyle: { color: '#e0e0ff' }
+        },
+        legend: {
+          data: ['CPU', 'GPU', '网络'],
+          textStyle: { color: '#9090a0' }
+        },
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '3%',
+          containLabel: true
+        },
+        xAxis: {
+          type: 'category',
+          boundaryGap: false,
+          data: ['0s', '10s', '20s', '30s', '40s', '50s', '60s'],
+          axisLine: { lineStyle: { color: 'rgba(0, 255, 255, 0.3)' } },
+          axisLabel: { color: '#9090a0' }
+        },
+        yAxis: {
+          type: 'value',
+          max: 100,
+          axisLine: { lineStyle: { color: 'rgba(0, 255, 255, 0.3)' } },
+          axisLabel: { color: '#9090a0' },
+          splitLine: { lineStyle: { color: 'rgba(0, 255, 255, 0.1)' } }
+        },
+        series: [
+          {
+            name: 'CPU',
+            type: 'line',
+            smooth: true,
+            data: cpuData,
+            lineStyle: { color: '#00ffff', width: 2 },
+            areaStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: 'rgba(0, 255, 255, 0.3)' },
+                { offset: 1, color: 'rgba(0, 255, 255, 0.05)' }
+              ])
+            }
+          },
+          {
+            name: 'GPU',
+            type: 'line',
+            smooth: true,
+            data: gpuData,
+            lineStyle: { color: '#ff00ff', width: 2 },
+            areaStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: 'rgba(255, 0, 255, 0.3)' },
+                { offset: 1, color: 'rgba(255, 0, 255, 0.05)' }
+              ])
+            }
+          },
+          {
+            name: '网络',
+            type: 'line',
+            smooth: true,
+            data: networkData,
+            lineStyle: { color: '#00ff00', width: 2 },
+            areaStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: 'rgba(0, 255, 0, 0.3)' },
+                { offset: 1, color: 'rgba(0, 255, 0, 0.05)' }
+              ])
+            }
+          }
+        ]
+      });
+      
+      // 窗口大小变化时重新调整图表
+      window.addEventListener('resize', () => perfChart.resize());
+    }
+    
+    /**
+     * ========================================
+     * 5. 风扇控制功能
+     * ========================================
+     */
+    
+    // 设置风扇模式：auto 或 manual
+    function setFanMode(mode) {
+      currentFanMode = mode;
+      
+      // 更新按钮激活状态
+      document.getElementById('fan-mode-auto').classList.toggle('active', mode === 'auto');
+      document.getElementById('fan-mode-manual').classList.toggle('active', mode === 'manual');
+      
+      // 手动模式下显示滑块，自动模式下隐藏
+      document.getElementById('fan-speed-controls').style.display = mode === 'manual' ? 'block' : 'none';
+      
+      // 更新所有风扇的模式徽章
+      const badges = document.querySelectorAll('.fan-info-card .mode-badge');
+      badges.forEach(b => {
+        b.className = `mode-badge ${mode}`;
+        b.textContent = mode === 'auto' ? '自动' : '手动';
+      });
+      
+      // 添加信息告警
+      addAlert('info', mode === 'auto' ? '风扇已切换到自动模式' : '风扇已切换到手动模式', '风扇控制');
+    }
+    
+    // 设置风扇转速（手动模式）
+    function setFanSpeed(speed) {
+      document.getElementById('fan-speed-value').textContent = speed + '%';
+      
+      // 计算 RPM（假设 100% = 2500 RPM）
+      const rpm = Math.floor((speed / 100) * 2500);
+      
+      // 更新各风扇显示
+      document.getElementById('cpu-fan-speed').innerHTML = rpm + ' <span>RPM</span>';
+      document.getElementById('sys1-fan-speed').innerHTML = Math.floor(rpm * 0.75) + ' <span>RPM</span>';
+      document.getElementById('sys2-fan-speed').innerHTML = Math.floor(rpm * 0.7) + ' <span>RPM</span>';
+    }
+    
+    /**
+     * ========================================
+     * 6. 时间更新功能
+     * ========================================
+     */
+    function updateTime() {
+      const now = new Date();
+      document.getElementById('current-time').textContent = now.toLocaleTimeString('zh-CN');
+      
+      // 计算系统运行时间
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const h = Math.floor(elapsed / 3600);
+      const m = Math.floor((elapsed % 3600) / 60);
+      const s = elapsed % 60;
+      
+      document.getElementById('uptime').textContent =
+        `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+    
+    /**
+     * ========================================
+     * 7. 数据更新 - 模拟实时数据
+     * ========================================
+     */
+    function updateData() {
+      // 生成模拟数据
+      const cpu = Math.random() * 60 + 20;
+      const gpu = Math.random() * 50 + 15;
+      const temp = 30 + Math.random() * 30;
+      const traffic = Math.random() * 1000;
+      const conn = Math.floor(Math.random() * 100);
+      const procs = Math.floor(Math.random() * 200) + 50;
+      
+      // 更新动画数值
+      animatedCPU.setValue(cpu);
+      animatedGPU.setValue(gpu);
+      animatedTemp.setValue(temp);
+      
+      // 更新进度条宽度
+      document.getElementById('cpu-progress').style.width = cpu + '%';
+      document.getElementById('gpu-progress').style.width = gpu + '%';
+      
+      // 更新其他监控数据
+      document.getElementById('memory-usage').textContent = (Math.random() * 8 + 4).toFixed(1) + ' GB';
+      document.getElementById('network-traffic').textContent = traffic.toFixed(2) + ' MB';
+      document.getElementById('network-connections').textContent = conn;
+      document.getElementById('upload-speed').textContent = Math.floor(Math.random() * 1000) + ' KB/s';
+      document.getElementById('download-speed').textContent = Math.floor(Math.random() * 2000) + ' KB/s';
+      document.getElementById('network-anomalies').textContent = Math.floor(Math.random() * 5);
+      document.getElementById('running-processes').textContent = procs;
+      document.getElementById('software-anomalies').textContent = Math.floor(Math.random() * 3);
+      document.getElementById('network-requests').textContent = Math.floor(Math.random() * 500);
+      document.getElementById('file-operations').textContent = Math.floor(Math.random() * 100);
+      document.getElementById('serial-ports').textContent = Math.floor(Math.random() * 5);
+      document.getElementById('serial-rate').textContent = Math.floor(Math.random() * 1000000) + ' bps';
+      document.getElementById('serial-errors').textContent = Math.floor(Math.random() * 2);
+      document.getElementById('device-count').textContent = Math.floor(Math.random() * 3);
+      
+      // 自动模式下更新风扇转速
+      if (currentFanMode === 'auto') {
+        const cpuFan = Math.floor(Math.random() * 1000 + 800);
+        document.getElementById('cpu-fan-speed').innerHTML = cpuFan + ' <span>RPM</span>';
+        document.getElementById('sys1-fan-speed').innerHTML = Math.floor(cpuFan * 0.75) + ' <span>RPM</span>';
+        document.getElementById('sys2-fan-speed').innerHTML = Math.floor(cpuFan * 0.7) + ' <span>RPM</span>';
+      }
+      
+      // 更新图表数据
+      cpuData.shift();
+      cpuData.push(cpu);
+      gpuData.shift();
+      gpuData.push(gpu);
+      networkData.shift();
+      networkData.push(Math.random() * 60 + 40);
+      
+      perfChart.setOption({
+        series: [{ data: cpuData }, { data: gpuData }, { data: networkData }]
+      });
+      
+      // 随机生成告警（约 8% 概率）
+      if (Math.random() > 0.92) {
+        const levels = ['', 'warning', 'info'];
+        const messages = [
+          'CPU使用率过高，请关注',
+          '检测到异常网络连接',
+          'GPU温度升高',
+          '新设备接入网络',
+          '串口数据异常'
+        ];
+        const modules = ['CPU/GPU', '网络', '软件', '串口'];
+        addAlert(
+          levels[Math.floor(Math.random() * levels.length)],
+          messages[Math.floor(Math.random() * messages.length)],
+          modules[Math.floor(Math.random() * modules.length)]
+        );
+      }
+    }
+    
+    /**
+     * ========================================
+     * 8. 告警管理
+     * ========================================
+     */
+    function addAlert(level, message, module) {
+      const list = document.getElementById('alert-list');
+      
+      // 创建告警 DOM 元素
+      const item = document.createElement('div');
+      item.className = `alert-item${level ? ' ' + level : ''}`;
+      item.innerHTML = `
+        <span class="alert-level">${level || '告警'}</span>
+        <div class="alert-content">
+          <div class="alert-message">${message}</div>
+          <div class="alert-time">${new Date().toLocaleString('zh-CN')} | 模块: ${module}</div>
+        </div>
+      `;
+      
+      // 插入到列表开头（最新告警最上面）
+      list.insertBefore(item, list.firstChild);
+      
+      // 最多显示 8 条告警，超出的移除
+      if (list.children.length > 8) {
+        list.removeChild(list.lastChild);
+      }
+    }
+    
+    /**
+     * ========================================
+     * 9. 页面加载完成 - 初始化所有功能
+     * ========================================
+     */
+    window.addEventListener('DOMContentLoaded', () => {
+      // 1. 初始化粒子系统
+      new ParticleSystem();
+      
+      // 2. 初始化图表
+      initCharts();
+      
+      // 3. 立即更新一次时间
+      updateTime();
+      
+      // 4. 设置定时器，持续更新数据
+      setInterval(updateTime, 1000);        // 每秒更新时间
+      setInterval(updateData, 1500);        // 每 1.5 秒更新监控数据
+      
+      // 5. 添加初始告警
+      addAlert('info', '系统初始化完成', '系统');
+      setTimeout(() => addAlert('', '检测到网络连接异常', '网络'), 2000);
+    });
+  </script>
+</body>
+</html>

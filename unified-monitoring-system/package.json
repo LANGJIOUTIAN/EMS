@@ -1,0 +1,91 @@
+{
+  "name": "unified-monitoring-system",
+  "version": "1.0.0",
+  "description": "统一监控系统 - 带风扇控制的桌面监控应用",
+  "main": "electron/main.js",
+  "author": "Monitoring Team",
+  "license": "MIT",
+  "homepage": "https://github.com/your-username/unified-monitoring-system",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/unified-monitoring-system.git"
+  },
+  "keywords": [
+    "monitoring",
+    "cpu",
+    "gpu",
+    "network",
+    "fan-control",
+    "electron",
+    "dashboard"
+  ],
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "dist": "npm run build:win && npm run build:mac && npm run build:linux"
+  },
+  "build": {
+    "appId": "com.monitoring.unified",
+    "productName": "统一监控系统",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "server/public/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "publisherName": "Unified Monitoring System"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "统一监控系统"
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.utilities",
+      "hardenedRuntime": true
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "assets/icon.png",
+      "category": "Utility"
+    }
+  },
+  "dependencies": {
+    "electron-log": "^5.0.0",
+    "systeminformation": "^5.21.0",
+    "electron-store": "^8.1.0",
+    "auto-launch": "^6.0.0"
+  },
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.0"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  }
+}
